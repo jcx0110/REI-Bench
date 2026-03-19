@@ -77,7 +77,7 @@ If you use REI-Bench or TOCC in your work, please cite:
     booktitle={The Fourteenth International Conference on Learning Representations},
     year={2026},
     month={April},
-    url={https://openreview.net/forum?id=YOUR_PAPER_ID}
+    url = {https://openreview.net/pdf?id=vmBIF25KLf}
   }
   
   @article{jiang2025rei,
