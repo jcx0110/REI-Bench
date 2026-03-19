@@ -35,14 +35,6 @@ log_success = logging.getLogger(f"{__name__}_success")
 _PROMPTS_DIR = os.path.join(os.path.dirname(__file__), "planners", "prompts")
 
 
-def _dbg(payload):
-    try:
-        with open("/home/chenxi/chenxi/LLMTaskPlanning/.cursor/debug.log", "a") as f:
-            f.write(json.dumps({**payload, "timestamp": int(time.time() * 1000)}) + "\n")
-    except Exception:
-        pass
-
-
 class AlfredEvaluator(Evaluator):
     def __init__(self, hparams):
         self.cfg = hparams
@@ -108,9 +100,7 @@ class AlfredEvaluator(Evaluator):
         start = time.time()
         x_display = cfg.alfred.x_display
         save_path = cfg.out_dir
-        _dbg({"location": "alfred_evaluator.evaluate", "message": "before_evaluate_main", "hypothesisId": "H1", "data": {"n_tasks": len(files)}})
         results = self.evaluate_main(files, args_dict, self.planner, x_display, save_path)
-        _dbg({"location": "alfred_evaluator.evaluate", "message": "after_evaluate_main", "hypothesisId": "H1", "data": {"n_results": len(results)}})
         n = len(results)
         n_success = sum(1 for e in results if e['success'])
         latencies = [e['whole_plan_latency_ms'] for e in results if 'whole_plan_latency_ms' in e]
@@ -142,13 +132,11 @@ class AlfredEvaluator(Evaluator):
         for i, task in enumerate(tqdm(tasks, leave=False, mininterval=10)):
             traj_data = load_task_json(task, args_dict["data"])
             r_idx = task['repeat_idx']
-            _dbg({"location": "evaluate_main.loop", "message": "task_start", "hypothesisId": "H1", "data": {"task_i": i, "task_id": traj_data.get("task_id", "")}})
             try:
                 if self.planner_framework == "saycan":
                     result = self.evaluate_task_saycan(env, traj_data, r_idx, model_args, planner, save_path, log_prompt=False, train_gt_steps=train_gt_steps)
                 else:
                     raise ValueError(f"Unsupported planner_framework: {self.planner_framework}. Only 'saycan' is supported.")
-                _dbg({"location": "evaluate_main.loop", "message": "task_done", "hypothesisId": "H1", "data": {"task_i": i, "success": result.get("success")}})
                 results.append(result)
                 status = "success" if result['success'] else "fail"
                 log.info(f"Task {i+1}/{len(tasks)}: {status}")
@@ -157,7 +145,6 @@ class AlfredEvaluator(Evaluator):
 
             except Exception as e:
                 import traceback
-                _dbg({"location": "evaluate_main.loop", "message": "task_exception", "hypothesisId": "H4", "data": {"task_i": i, "error": repr(e)}})
                 traceback.print_exc()
                 log.info(f"Task {i+1}/{len(tasks)}: fail (exception: {repr(e)})")
 
@@ -216,7 +203,6 @@ class AlfredEvaluator(Evaluator):
                         step = train_gt_steps[traj_data['task_id']][t]
                     prompt = ''
                 else:
-                    _dbg({"location": "evaluate_task_saycan", "message": "before_plan_step", "hypothesisId": "H5", "data": {"step_num": step_num, "t": t}})
                     step, prompt = planner.plan_step_by_step(instruction_text, prev_steps, prev_action_msg, None)
                     if step is None:
                         log.info("\tmax step reached")

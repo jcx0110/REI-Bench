@@ -4,16 +4,12 @@ import subprocess
 
 
 class dotdict(dict):
-    """dot.notation access to dictionary attributes"""
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
 
 def load_task_json(task, dict):
-    '''
-    load preprocessed json from disk
-    '''
     json_path = os.path.join(dict, task['task'], 'pp',
                              'ann_%d.json' % task['repeat_idx'])
     with open(json_path) as f:
@@ -22,10 +18,6 @@ def load_task_json(task, dict):
 
 
 def print_gpu_usage(msg):
-    """
-    ref: https://discuss.pytorch.org/t/access-gpu-memory-usage-in-pytorch/3192/4
-    """
-
     def query(field):
         return (subprocess.check_output(
             ['nvidia-smi', f'--query-gpu={field}',
@@ -42,7 +34,6 @@ def print_gpu_usage(msg):
 
 
 def ithor_name_to_natural_word(w):
-    # e.g., RemoteController -> remote controller
     if w == 'CD':
         return w
     else:
@@ -50,7 +41,6 @@ def ithor_name_to_natural_word(w):
 
 
 def natural_word_to_ithor_name(w):
-    # e.g., floor lamp -> FloorLamp
     if w == 'CD':
         return w
     else:
@@ -58,7 +48,6 @@ def natural_word_to_ithor_name(w):
 
 
 def find_indefinite_article(w):
-    # simple rule, not always correct
     w = w.lower()
     if w[0] in ['a', 'e', 'i', 'o', 'u']:
         return 'an'

@@ -1,73 +1,31 @@
-"""
-Configuration mapper for converting between new and old configuration formats.
-Maintains backward compatibility while supporting the new modular config structure.
-"""
-
 from omegaconf import DictConfig
 
 
 def get_planner_framework(cfg: DictConfig) -> str:
-    """
-    Get planner framework from new or old config format.
-    
-    Args:
-        cfg: Configuration object
-        
-    Returns:
-        Framework name (saycan, dag_plan, hpe_plan)
-    """
-    # New format: framework.planner_framework
     if hasattr(cfg, 'framework') and hasattr(cfg.framework, 'planner_framework'):
         return cfg.framework.planner_framework
-    
-    # Old format: planner.planner_framework
     if hasattr(cfg, 'planner') and hasattr(cfg.planner, 'planner_framework'):
         return cfg.planner.planner_framework
-    
-    # Default
     return "saycan"
 
 
 def get_model_name(cfg: DictConfig) -> str:
-    """
-    Get model name from new or old config format.
-    
-    Args:
-        cfg: Configuration object
-        
-    Returns:
-        Model name string
-    """
-    # New format: model.model_name
     if hasattr(cfg, 'model') and hasattr(cfg.model, 'model_name'):
         return cfg.model.model_name
-    
-    # Old format: planner.model_name
     if hasattr(cfg, 'planner') and hasattr(cfg.planner, 'model_name'):
         return cfg.planner.model_name
-    
-    # Default
     return "meta-llama/Llama-3.1-8B-Instruct"
 
 
 def get_prompting_method(cfg: DictConfig) -> dict:
-    """
-    Get prompting method configuration from new or old config format.
-    
-    Args:
-        cfg: Configuration object
-        
-    Returns:
-        Dictionary with aware_hint, COT, TOCC, ICL flags
-    """
     result = {
         'aware_hint': False,
         'COT': False,
         'TOCC': False,
         'ICL': False
     }
-    
-    # New format: method.*
+    if getattr(cfg, 'prompting_method_enabled', True) is False:
+        return result
     if hasattr(cfg, 'method'):
         if hasattr(cfg.method, 'aware_hint'):
             result['aware_hint'] = cfg.method.aware_hint
@@ -77,8 +35,6 @@ def get_prompting_method(cfg: DictConfig) -> dict:
             result['TOCC'] = cfg.method.TOCC
         if hasattr(cfg.method, 'ICL'):
             result['ICL'] = cfg.method.ICL
-    
-    # Old format: prompting_method.*
     if hasattr(cfg, 'prompting_method'):
         if hasattr(cfg.prompting_method, 'aware_hint'):
             result['aware_hint'] = cfg.prompting_method.aware_hint
@@ -86,44 +42,36 @@ def get_prompting_method(cfg: DictConfig) -> dict:
             result['COT'] = cfg.prompting_method.COT
         if hasattr(cfg.prompting_method, 'TOCC'):
             result['TOCC'] = cfg.prompting_method.TOCC
-    
+        if hasattr(cfg.prompting_method, 'ICL'):
+            result['ICL'] = cfg.prompting_method.ICL
     return result
 
 
-# Readable data_type labels (config) -> internal keys (JSON: task_desc1-1, memory1-1, etc.)
-# Format: context-RE. Context: standard(1), noised(2), short(3). RE: explicit(1), mixed(2), implicit(3)
 DATA_TYPE_READABLE_TO_INTERNAL = {
-    "standard-explicit": "1-1", "standard-mixed": "1-2", "standard-implicit": "1-3",
-    "noised-explicit": "2-1", "noised-mixed": "2-2", "noised-implicit": "2-3",
-    "short-explicit": "3-1", "short-mixed": "3-2", "short-implicit": "3-3",
+    "standard-explicit": "1-1", "standard-mixed": "2-1", "standard-implicit": "3-1",
+    "noised-explicit": "1-2", "noised-mixed": "2-2", "noised-implicit": "3-2",
+    "short-explicit": "1-3", "short-mixed": "2-3", "short-implicit": "3-3",
 }
 
 
 def _data_type_to_internal(value: str) -> str:
-    """Convert config data_type (readable or legacy 1-1) to internal key for JSON."""
     if value in DATA_TYPE_READABLE_TO_INTERNAL:
         return DATA_TYPE_READABLE_TO_INTERNAL[value]
     return value
 
 
 def get_data_type(cfg: DictConfig) -> str:
-    """
-    Get data type from config and return internal format for JSON keys (task_desc*, memory*).
-    Accepts readable labels (e.g. standard-explicit) or legacy (1-1).
-    """
     raw = None
-    # New format: task_difficulty.*
     if hasattr(cfg, 'task_difficulty'):
-        if hasattr(cfg.task_difficulty, 'data_type'):
-            raw = cfg.task_difficulty.data_type
+        if hasattr(cfg.task_difficulty, 'data_type') and cfg.task_difficulty.data_type:
+            raw = str(cfg.task_difficulty.data_type)
         elif hasattr(cfg.task_difficulty, 're_level') and hasattr(cfg.task_difficulty, 'context_type'):
             re_level_map = {'explicit': '1', 'mixed': '2', 'implicit': '3'}
             context_type_map = {'standard': '1', 'noised': '2', 'short': '3'}
             re_level = cfg.task_difficulty.re_level
             context_type = cfg.task_difficulty.context_type
             if re_level in re_level_map and context_type in context_type_map:
-                raw = f"{context_type_map[context_type]}-{re_level_map[re_level]}"
-    # Old format: data_type
+                raw = f"{re_level_map[re_level]}-{context_type_map[context_type]}"
     if raw is None and hasattr(cfg, 'data_type') and cfg.data_type is not None:
         raw = str(cfg.data_type)
     if raw is None:
@@ -132,40 +80,23 @@ def get_data_type(cfg: DictConfig) -> str:
 
 
 def get_data_types(cfg: DictConfig) -> list:
-    """
-    Get list of data types from config (readable or legacy). Returned as-is for cfg.data_type / display.
-    Use get_data_type(cfg) when indexing JSON (task_desc*, memory*).
-    """
     if hasattr(cfg, 'data_types') and cfg.data_types is not None:
         return list(cfg.data_types)
     return [get_data_type(cfg)]
 
 
 def convert_re_level_to_number(re_level: str) -> int:
-    """Convert re_level string to number (explicit=1, mixed=2, implicit=3)."""
     mapping = {'explicit': 1, 'mixed': 2, 'implicit': 3}
     return mapping.get(re_level, 1)
 
 
 def convert_context_type_to_number(context_type: str) -> int:
-    """Convert context_type string to number (standard=1, noised=2, short=3)."""
     mapping = {'standard': 1, 'noised': 2, 'short': 3}
     return mapping.get(context_type, 1)
 
 
 def get_model_config(cfg: DictConfig) -> dict:
-    """
-    Get model configuration from new or old format.
-    
-    Args:
-        cfg: Configuration object
-        
-    Returns:
-        Dictionary with model configuration
-    """
     result = {}
-    
-    # New format: model.*
     if hasattr(cfg, 'model'):
         if hasattr(cfg.model, 'model_name'):
             result['model_name'] = cfg.model.model_name
@@ -179,8 +110,6 @@ def get_model_config(cfg: DictConfig) -> dict:
             result['hf_auth_token'] = cfg.model.hf_auth_token
         if hasattr(cfg.model, 'openai_api_key'):
             result['openai_api_key'] = cfg.model.openai_api_key
-    
-    # Old format: planner.*
     if hasattr(cfg, 'planner'):
         if 'model_name' not in result and hasattr(cfg.planner, 'model_name'):
             result['model_name'] = cfg.planner.model_name
@@ -192,6 +121,4 @@ def get_model_config(cfg: DictConfig) -> dict:
             result['hf_auth_token'] = cfg.planner.hf_auth_token
         if 'openai_api_key' not in result and hasattr(cfg.planner, 'openai_api_key'):
             result['openai_api_key'] = cfg.planner.openai_api_key
-    
     return result
-

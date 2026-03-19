@@ -1,6 +1,5 @@
 import os, math, re
 import textwrap
-import json
 import time
 
 import numpy as np
@@ -15,15 +14,6 @@ from reibench.envs.alfred.utils import natural_word_to_ithor_name
 
 log = logging.getLogger(__name__)
 
-# #region agent log
-def _dbg_thor(payload):
-    try:
-        with open("/home/chenxi/chenxi/LLMTaskPlanning/.cursor/debug.log", "a") as f:
-            f.write(json.dumps({**payload, "timestamp": int(time.time() * 1000)}) + "\n")
-    except Exception:
-        pass
-# #endregion
-
 
 class ThorConnector(ThorEnv):
     def __init__(self, x_display=constants.X_DISPLAY,
@@ -31,7 +21,6 @@ class ThorConnector(ThorEnv):
                  player_screen_width=constants.DETECTION_SCREEN_WIDTH,
                  quality='MediumCloseFitShadows',
                  build_path=constants.BUILD_PATH):
-        # Prefer DISPLAY from env (e.g. set by xvfb-run) so THOR uses the same display
         display_env = os.environ.get("DISPLAY")
         if display_env:
             display_num = display_env.lstrip(":").strip().split(".")[0] or "0"
@@ -83,9 +72,6 @@ class ThorConnector(ThorEnv):
         return self.reachable_positions[selected]
 
     def llm_skill_interact(self, instruction: str):
-        # #region agent log
-        _dbg_thor({"location": "thor_connector.llm_skill_interact", "message": "entry", "hypothesisId": "H2", "data": {"instruction": instruction[:60]}})
-        # #endregion
         if instruction.startswith("put down ") or instruction.startswith("open "):
             pass
         else:
@@ -145,9 +131,6 @@ class ThorConnector(ThorEnv):
             'success': len(ret) <= 0,
             'message': ret
         }
-        # #region agent log
-        _dbg_thor({"location": "thor_connector.llm_skill_interact", "message": "exit", "hypothesisId": "H2", "data": {"success": ret_dict["success"]}})
-        # #endregion
         return ret_dict
 
     def get_object_prop(self, name, prop, metadata):
@@ -187,10 +170,6 @@ class ThorConnector(ThorEnv):
 
             reachable_pos_idx = 0
             for i in range(max_attempts):
-                # #region agent log
-                if i % 5 == 0 or i < 3:
-                    _dbg_thor({"location": "thor_connector.nav_obj", "message": "attempt", "hypothesisId": "H3", "data": {"attempt": i, "target_obj": target_obj}})
-                # #endregion
                 reachable_pos_idx += 1
                 if i == 10 and (target_obj == 'Fridge' or target_obj == 'Microwave'):
                     reachable_pos_idx -= 10
